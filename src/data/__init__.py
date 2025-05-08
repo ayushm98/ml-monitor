@@ -1,12 +1,12 @@
-"""Data processing modules."""
+"""Data pipeline for Fraud Detection ML-Monitor."""
 
-from .ingestion import BikeShareDataLoader
-from .features import BikeShareFeatureEngineer, create_ml_dataset
-from .validation import DataValidator
+from .ingestion import FraudDataLoader
+from .features import FraudFeatureEngineer, create_ml_dataset
+from .validation import FraudDataValidator
 
 __all__ = [
-    'BikeShareDataLoader',
-    'BikeShareFeatureEngineer',
-    'DataValidator',
-    'create_ml_dataset'
+    "FraudDataLoader",
+    "FraudFeatureEngineer",
+    "FraudDataValidator",
+    "create_ml_dataset"
 ]
