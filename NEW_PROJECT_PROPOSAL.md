@@ -110,7 +110,7 @@ Let's score this against the rubric BEFORE building:
          ▼                       ▼                       ▼
 ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
 │   OpenAI API    │   │  Anthropic API  │   │   Local LLM     │
-│   (GPT-3.5/4)   │   │  (Claude)       │   │   (Ollama)      │
+│   (GPT-3.5/4)   │   │  (Sonnet/Opus)  │   │   (Ollama)      │
 └─────────────────┘   └─────────────────┘   └─────────────────┘
                                  │
                                  ▼
