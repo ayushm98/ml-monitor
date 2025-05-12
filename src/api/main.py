@@ -21,6 +21,9 @@ from .schemas import (
 )
 from .model_service import model_service
 
+# Drift detection
+drift_detector = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +58,8 @@ SERVICE_START_TIME = time.time()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
+    global drift_detector
+
     # Startup
     logger.info("Starting Fraud Detection API...")
 
@@ -65,10 +70,33 @@ async def lifespan(app: FastAPI):
     else:
         model_version_info.labels(version=model_service.model_version).set(1)
 
+    # Initialize drift detector with reference data
+    try:
+        from src.data.ingestion import FraudDataLoader
+        from src.monitoring.drift_detector import DriftDetector
+
+        loader = FraudDataLoader()
+        train_df, _ = loader.load_and_split()
+
+        # Use subset for reference (first 10k samples)
+        reference_data = train_df.head(10000)
+        drift_detector = DriftDetector(reference_data, window_size=1000, psi_threshold=0.1)
+        logger.info("Drift detector initialized with reference data")
+    except Exception as e:
+        logger.warning(f"Could not initialize drift detector: {e}")
+        drift_detector = None
+
     yield
 
     # Shutdown
     logger.info("Shutting down Fraud Detection API...")
+
+    # Save drift state
+    if drift_detector:
+        try:
+            drift_detector.save_state("data/drift_state.json")
+        except Exception as e:
+            logger.error(f"Failed to save drift state: {e}")
 
 
 # Initialize FastAPI app
@@ -113,6 +141,13 @@ async def predict_fraud(transaction: TransactionFeatures):
         # Update metrics
         prediction_counter.labels(prediction='fraud' if is_fraud else 'legitimate').inc()
         fraud_probability_gauge.set(fraud_prob)
+
+        # Track for drift detection
+        if drift_detector:
+            try:
+                drift_detector.add_observation(features_dict)
+            except Exception as e:
+                logger.warning(f"Failed to track drift: {e}")
 
         # Calculate latency
         latency_ms = (time.time() - start_time) * 1000
@@ -247,6 +282,44 @@ async def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
+@app.get("/drift/status")
+async def get_drift_status():
+    """
+    Get current drift detection status.
+
+    Returns:
+        Drift monitoring status and recent metrics
+    """
+    if not drift_detector:
+        raise HTTPException(status_code=503, detail="Drift detector not initialized")
+
+    try:
+        drift_result = drift_detector.check_drift()
+        return drift_result
+    except Exception as e:
+        logger.error(f"Drift check error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/drift/report")
+async def get_drift_report():
+    """
+    Get comprehensive drift monitoring report.
+
+    Returns:
+        Detailed drift analysis and history
+    """
+    if not drift_detector:
+        raise HTTPException(status_code=503, detail="Drift detector not initialized")
+
+    try:
+        report = drift_detector.get_drift_report()
+        return report
+    except Exception as e:
+        logger.error(f"Drift report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/")
 async def root():
     """Root endpoint."""
@@ -259,6 +332,8 @@ async def root():
             "batch_predict": "/predict/batch",
             "health": "/health",
             "model_info": "/model/info",
+            "drift_status": "/drift/status",
+            "drift_report": "/drift/report",
             "metrics": "/metrics",
             "docs": "/docs"
         }
