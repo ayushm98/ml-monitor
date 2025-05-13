@@ -1,0 +1,52 @@
+name: Model Training Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      n_estimators:
+        description: 'Number of trees in Random Forest'
+        required: false
+        default: '100'
+      max_depth:
+        description: 'Maximum tree depth'
+        required: false
+        default: '10'
+
+jobs:
+  train-model:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download dataset
+        run: |
+          mkdir -p data/raw
+          # Dataset should be pre-downloaded or fetched from artifact storage
+
+      - name: Train model
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          python src/models/train.py \
+            --n_estimators ${{ github.event.inputs.n_estimators || '100' }} \
+            --max_depth ${{ github.event.inputs.max_depth || '10' }}
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: mlruns/
+          retention-days: 30
