@@ -1,0 +1,22 @@
+# ML-Monitor Configuration
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  log_level: "info"
+
+model:
+  name: "fraud-detector"
+  tracking_uri: "http://mlflow:5000"
+  reload_interval: 3600
+
+monitoring:
+  drift_threshold: 0.1
+  drift_window_size: 1000
+  metrics_port: 9090
+
+database:
+  host: "postgres"
+  port: 5432
+  name: "mlmonitor"
