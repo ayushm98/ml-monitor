@@ -279,7 +279,8 @@ def main():
     print("=" * 60 + "\n")
 
     # Initialize trainer
-    trainer = FraudModelTrainer(mlflow_tracking_uri="http://localhost:5000")
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    trainer = FraudModelTrainer(mlflow_tracking_uri=mlflow_uri)
 
     # Train baseline model
     print("Training baseline RandomForest with SMOTE...\n")
