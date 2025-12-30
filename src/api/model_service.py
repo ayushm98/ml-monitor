@@ -179,4 +179,4 @@ class ModelService:
 
 
 # Global model service instance
-model_service = ModelService()
+model_service = ModelService(mlflow_tracking_uri=os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
