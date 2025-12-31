@@ -5,6 +5,10 @@ global:
     monitor: 'ml-monitor'
     environment: 'production'
 
+# Alerting rules
+rule_files:
+  - 'alerts.yml'
+
 scrape_configs:
   # Scrape Prometheus itself
   - job_name: 'prometheus'

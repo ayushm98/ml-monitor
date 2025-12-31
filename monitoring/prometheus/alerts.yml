@@ -1,0 +1,79 @@
+groups:
+  - name: fraud_detection_alerts
+    interval: 30s
+    rules:
+      # Alert when API latency p95 exceeds 200ms
+      - alert: HighPredictionLatency
+        expr: histogram_quantile(0.95, rate(fraud_prediction_duration_seconds_bucket[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High prediction latency detected"
+          description: "API latency p95 is {{ $value | humanizeDuration }} (threshold: 200ms). This may impact user experience."
+
+      # Alert when API is down
+      - alert: APIDown
+        expr: up{job="fraud-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Fraud Detection API is down"
+          description: "The fraud detection API has been unreachable for more than 1 minute. Immediate attention required."
+
+      # Alert when fraud rate is suspiciously high
+      - alert: SuspiciouslyHighFraudRate
+        expr: |
+          (
+            rate(fraud_predictions_total{prediction="fraud"}[5m])
+            /
+            rate(fraud_predictions_total[5m])
+          ) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: model
+        annotations:
+          summary: "Unusually high fraud rate detected"
+          description: "Fraud rate is {{ $value | humanizePercentage }} (threshold: 10%). This could indicate data drift, model degradation, or actual fraud spike."
+
+      # Alert when model fails to load
+      - alert: ModelNotLoaded
+        expr: model_version_info == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: model
+        annotations:
+          summary: "ML model failed to load"
+          description: "The fraud detection model is not loaded. API may be returning errors or degraded predictions."
+
+      # Alert when data drift is detected
+      - alert: DataDriftDetected
+        expr: drift_psi_value > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: data
+        annotations:
+          summary: "Data drift detected (PSI > 0.2)"
+          description: "Population Stability Index is {{ $value }} (threshold: 0.2). Model may need retraining on recent data."
+
+      # Alert when error rate is high
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(fraud_prediction_errors_total[5m])
+            /
+            rate(fraud_predictions_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High prediction error rate"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%). Check API logs for issues."
